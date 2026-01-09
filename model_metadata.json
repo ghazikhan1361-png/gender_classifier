@@ -1,0 +1,14 @@
+{
+    "model_name": "Gender Classifier Fully Connected",
+    "input_shape": [
+        64,
+        64,
+        3
+    ],
+    "flattened_features": 12288,
+    "output_classes": [
+        "Male",
+        "Female"
+    ],
+    "test_accuracy": 0.845212996006012
+}
