@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gender Classification AI</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .container { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); text-align: center; width: 400px; }
+        h1 { color: #333; margin-bottom: 1.5rem; }
+        .upload-btn { background-color: #007bff; color: white; padding: 10px 20px; border-radius: 5px; cursor: pointer; display: inline-block; margin-bottom: 1rem; transition: background 0.3s; }
+        .upload-btn:hover { background-color: #0056b3; }
+        #fileInput { display: none; }
+        #preview { max-width: 100%; max-height: 250px; border-radius: 8px; margin-top: 10px; display: none; border: 2px solid #ddd; }
+        .result-box { margin-top: 20px; padding: 15px; border-radius: 8px; background-color: #e9ecef; display: none; }
+        .gender-label { font-size: 1.5rem; font-weight: bold; }
+        .confidence { color: #666; font-size: 0.9rem; }
+        .male { color: #2196F3; }
+        .female { color: #E91E63; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto; display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Gender Classifier</h1>
+    
+    <label for="fileInput" class="upload-btn">📷 Upload Photo</label>
+    <input type="file" id="fileInput" accept="image/*">
+    
+    <div style="margin-bottom: 15px;">
+        <img id="preview" alt="Image preview">
+    </div>
+
+    <button id="predictBtn" class="upload-btn" style="background-color: #28a745; display: none;">🔍 Predict Gender</button>
+
+    <div class="loader" id="loader"></div>
+
+    <div id="result" class="result-box">
+        <div id="genderText" class="gender-label"></div>
+        <div id="confidenceText" class="confidence"></div>
+    </div>
+</div>
+
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const preview = document.getElementById('preview');
+    const predictBtn = document.getElementById('predictBtn');
+    const resultBox = document.getElementById('result');
+    const genderText = document.getElementById('genderText');
+    const confidenceText = document.getElementById('confidenceText');
+    const loader = document.getElementById('loader');
+
+    let base64String = "";
+
+    // Function to Play Custom Audio
+    function speakResult(gender) {
+        let audioFile = "";
+
+        // Decide which file to play based on result
+        if (gender === "Male") {
+            audioFile = "male.mp3";
+        } else {
+            audioFile = "female.mp3";
+        }
+
+        // Create audio player and play
+        const audio = new Audio(audioFile);
+        audio.play().catch(error => {
+            console.log("Audio play failed:", error);
+            alert("Could not play audio. Make sure male.mp3 and female.mp3 are in the folder!");
+        });
+    }
+
+    // Handle Image Upload
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onloadend = function() {
+            preview.src = reader.result;
+            preview.style.display = "inline-block";
+            predictBtn.style.display = "inline-block";
+            resultBox.style.display = "none";
+            
+            base64String = reader.result.replace("data:", "").replace(/^.+,/, "");
+        }
+        reader.readAsDataURL(file);
+    });
+
+    // Handle Predict Button
+    predictBtn.addEventListener('click', async function() {
+        if (!base64String) return;
+
+        loader.style.display = "block";
+        resultBox.style.display = "none";
+        predictBtn.disabled = true;
+
+        try {
+            const response = await fetch('http://127.0.0.1:8000/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ image_base64: base64String })
+            });
+
+            const data = await response.json();
+            
+            loader.style.display = "none";
+            resultBox.style.display = "block";
+            predictBtn.disabled = false;
+
+            // Show Text
+            genderText.innerText = data.gender;
+            genderText.className = "gender-label " + (data.gender === "Male" ? "male" : "female");
+            const confPercent = (data.confidence * 100).toFixed(2);
+            confidenceText.innerText = `Confidence: ${confPercent}%`;
+
+            // PLAY THE AUDIO
+            speakResult(data.gender);
+
+        } catch (error) {
+            console.error("Error:", error);
+            loader.style.display = "none";
+            alert("Error connecting to server. Is your backend running?");
+            predictBtn.disabled = false;
+        }
+    });
+</script>
+
+</body>
+</html>
